@@ -30,10 +30,11 @@ from displayio_listselect import ListSelect
 
 """
 TODO: Wishlist:
-[ ] show timestamps in the messages on the page
+[x] show timestamps in the messages on the page
 [x] show incoming messages on the handset screen
-[ ] clear the input message on the handset screen after it's sent
+[x] clear the input message on the handset screen after it's sent
 [x] allow handset to see list of users and send message to one without receiving first
+[x] enter key on a user to go from list to write message
 [ ] mobile version of the web page eventually
 [ ] make a screen to view single conversation history. (re-use inbox UI?)
 [ ] Control + number -> take user to that menu item even if they weren't on the menu
@@ -241,10 +242,12 @@ main_menu_group.append(menu_title)
 
 menu_body = """[1] List Users
 [2] Write msg
-[3] Inbox"""
+[3] Inbox
+[4] Conversation"""
 menu_body = Label(terminalio.FONT, text=menu_body, scale=2)
 menu_body.anchor_point = (0.5, 1.0)
-menu_body.anchored_position = (board.DISPLAY.width // 2, board.DISPLAY.height - 10)
+menu_body.line_spacing = 1.0
+menu_body.anchored_position = (board.DISPLAY.width // 2, board.DISPLAY.height - 4)
 main_menu_group.append(menu_body)
 page_layout.add_content(main_menu_group, "menu")
 
@@ -278,6 +281,30 @@ inbox_group.append(inbox_username)
 inbox_group.append(inbox_message)
 
 page_layout.add_content(inbox_group, "inbox")
+
+
+
+conversation_group = Group()
+conversation_title = Label(terminalio.FONT, text="Conversation", scale=2)
+conversation_title.anchor_point = (0.5, 0)
+conversation_title.anchored_position = (board.DISPLAY.width // 2, 4)
+conversation_group.append(conversation_title)
+
+conversation_username = Label(terminalio.FONT, scale=2)
+conversation_username.anchor_point = (0, 0)
+conversation_username.anchored_position = (4, 22)
+
+print(f"size: {conversation_title.width}, {conversation_title.height}")
+conversation_message = Label(terminalio.FONT, scale=2)
+conversation_message.anchor_point = (0, 0)
+conversation_message.anchored_position = (4, 42)
+
+conversation_group.append(conversation_username)
+conversation_group.append(conversation_message)
+
+page_layout.add_content(conversation_group, "conversation")
+
+
 
 list_users_group = Group()
 list_users_title = Label(terminalio.FONT, text="Users", scale=2)
@@ -334,6 +361,8 @@ try:
 
                     page_layout.show_page(page_name="inbox")
                     continue
+                elif entered_text == "4":
+                    page_layout.show_page(page_name="conversation")
 
             if page_layout.showing_page_name == "list":
                 # if entered_text == "`":
@@ -348,6 +377,9 @@ try:
                 elif entered_text == "\n":
                     print(f"selected: {list_users_select.selected_item}")
                     context["to_user"] = list_users_select.selected_item
+                    write_title.text = f"Writing to: {context['to_user']}"
+                    page_layout.show_page(page_name="write")
+                    continue
 
             if page_layout.showing_page_name == "inbox":
                 if entered_text == "\n":
@@ -400,6 +432,7 @@ try:
                     user_data["messages"].append(new_msg_obj)
                     save_data_for_user(context["to_user"], user_data)
 
+                    write_title.text = f"Sending to: {context['to_user']}"
 
                 else:
                     input_lbl.text += entered_text
@@ -410,6 +443,9 @@ try:
                 print(f"sending: {outgoing_message}")
                 websocket.send_message(outgoing_message)
                 outgoing_message = None
+                write_title.text = f"Writing to: {context['to_user']}"
+                input_lbl.text = ""
+                page_layout.show_page(page_name="menu")
             next_message_time = monotonic() + 1
 
 except Exception as e:
