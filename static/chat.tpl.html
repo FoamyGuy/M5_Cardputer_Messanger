@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat</title>
+  <style>
+      .timestamp {
+          position: fixed;
+          right: 0;
+          bottom: 0;
+      }
+
+      .message_container {
+          width: 500px;
+          background-color: #3b3b3b;
+      }
+
+      .message {
+          width: 300px;
+          padding: 8px;
+      }
+
+      .to_handset {
+          background-color: #00b80e;
+          text-align: start;
+      }
+
+      .to_user {
+          background-color: #0040b8;
+          text-align: end;
+          margin-left: auto;
+          margin-right: 0;
+      }
+      .message_timestamp{
+          font-size: 0.7em;
+      }
+
+      header {
+          position: fixed;
+          right: 8px;
+
+      }
+  </style>
+  <link rel="icon" type="image/x-icon" href="http://circuitpython.local/favicon.ico">
+</head>
+<body>
+<header>
+  <h2>Chatting as: {{ context["username"] }}</h2>
+  <label>Message: </label>
+  <input id="message_input"/>
+  <button id="send_btn">Send</button>
+</header>
+
+
+<div class="message_container">
+  {% for message in context["messages"] %}
+    <p class="message {{ 'to_user' if message['to'] == 1 else 'to_handset' }}">
+      <span class="message_timestamp">{{ message["time"] }}</span><br>
+      {% autoescape off %}{{ message["data"] }}{% autoescape on %}</p>
+  {% endfor %}
+</div>
+
+<footer>
+  <span class="timestamp">placeholder</span>
+</footer>
+
+<script>
+
+    function create_message_p(messageObj) {
+        let $newP = document.createElement("p");
+        let toClass = ""
+        if (messageObj["to"] === 0) {
+            toClass = "to_handset";
+        } else if (messageObj["to"] === 1) {
+            toClass = "to_user";
+        }
+
+        $newP.classList.add(toClass);
+        $newP.classList.add("message");
+        console.log(messageObj)
+        console.log(messageObj["time"])
+        let timespan = '<span class="message_timestamp">' + new Date(parseInt(messageObj["time"]) * 1000).toISOString() + '</span><br>'
+        $newP.innerHTML = timespan + messageObj["data"];
+        $messageInput.value = "";
+        $messageContainer.appendChild($newP);
+
+
+        //$messageContainer.scrollTop = $messageContainer.scrollHeight;
+        $messageContainer.scrollIntoView(false);
+
+    }
+
+    // Example POST method implementation:
+    async function postData(url = "", data = {}) {
+        // Default options are marked with *
+        const response = await fetch(url, {
+            method: "POST", // *GET, POST, PUT, DELETE, etc.
+            mode: "cors", // no-cors, *cors, same-origin
+            cache: "no-cache", // *default, no-cache, reload, force-cache, only-if-cached
+            credentials: "same-origin", // include, *same-origin, omit
+            headers: {
+                "Content-Type": "application/json",
+                // 'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            redirect: "follow", // manual, *follow, error
+            referrerPolicy: "no-referrer", // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+            body: JSON.stringify(data), // body data type must match "Content-Type" header
+        });
+        return response.json(); // parses JSON response into native JavaScript objects
+    }
+
+    let $sendBtn = document.querySelector("#send_btn");
+    let $messageInput = document.querySelector("#message_input");
+    let $timestampSpan = document.querySelector(".timestamp");
+    let $messageContainer = document.querySelector(".message_container");
+
+    $sendBtn.onclick = function () {
+        console.log("clicked?");
+
+        postData(window.location, {
+            "message": $messageInput.value
+        }).then(function (respData) {
+            console.log(respData);
+            if (respData["success"] === true) {
+                create_message_p({"data": $messageInput.value, "to": 0, "time": new Date().getTime()/1000})
+
+            }
+
+
+        });
+    }
+
+    let timestamp_ms = {{ context["timestamp"] }};
+    let timestamp_date = Date(timestamp_ms);
+    $timestampSpan.innerText = timestamp_date.toLocaleString();
+
+
+    function connect() {
+        let ws = new WebSocket('ws://' + location.host + '/connect-websocket');
+        ws.onopen = () => console.log('WebSocket connection opened');
+
+        ws.onmessage = function (event) {
+            console.log(event)
+            console.log("ws data: " + event.data);
+            let incMsgObj = JSON.parse(event.data)
+            console.log("to: " + incMsgObj["to"]);
+            create_message_p({"data": incMsgObj["data"], "to": incMsgObj["to"], "time": incMsgObj["time"]});
+        }
+        ws.onclose = function (e) {
+            console.log('Socket is closed. Reconnect will be attempted in 1 second.', e.reason);
+            setTimeout(function () {
+                connect();
+            }, 3000);
+        };
+        ws.onerror = function (err) {
+            console.log(err);
+            console.error('Socket encountered error: ', err.message, 'Closing socket');
+            ws.close();
+        };
+
+    }
+
+    connect();
+
+
+    let $messageTimestamps = document.querySelectorAll(".message_timestamp")
+
+    for (let i = 0; i < $messageTimestamps.length; i++) {
+        console.log("timestamp: " + $messageTimestamps.item(i));
+        let dateObj = new Date(1000* parseInt($messageTimestamps.item(i).innerText));
+        $messageTimestamps.item(i).innerText = dateObj.toISOString();
+    }
+
+
+</script>
+</body>
+</html>
