@@ -36,8 +36,8 @@ TODO: Wishlist:
 [x] allow handset to see list of users and send message to one without receiving first
 [x] enter key on a user to go from list to write message
 [ ] mobile version of the web page eventually
-[ ] make a screen to view single conversation history. (re-use inbox UI?)
-[ ] Control + number -> take user to that menu item even if they weren't on the menu
+[/] make a screen to view single conversation history. (re-use inbox UI?)
+[x] Control + number -> take user to that menu item even if they weren't on the menu
 """
 
 pool = socketpool.SocketPool(wifi.radio)
@@ -282,8 +282,6 @@ inbox_group.append(inbox_message)
 
 page_layout.add_content(inbox_group, "inbox")
 
-
-
 conversation_group = Group()
 conversation_title = Label(terminalio.FONT, text="Conversation", scale=2)
 conversation_title.anchor_point = (0.5, 0)
@@ -303,8 +301,6 @@ conversation_group.append(conversation_username)
 conversation_group.append(conversation_message)
 
 page_layout.add_content(conversation_group, "conversation")
-
-
 
 list_users_group = Group()
 list_users_title = Label(terminalio.FONT, text="Users", scale=2)
@@ -409,11 +405,33 @@ try:
                 # if entered_text == "`":
                 #     page_layout.show_page(page_name="menu")
 
+            if entered_text == "CTRL-1":
+                list_users_select.items = get_user_list()
+                page_layout.show_page(page_name="list")
+                continue
+            elif entered_text == "CTRL-2":
+                page_layout.show_page(page_name="write")
+                write_title.text = f"Writing to: {context['to_user']}"
+                continue
+            elif entered_text == "CTRL-3":
+                context["inbox_viewing_index"] = 0
+                if len(inbox) > 0:
+                    inbox_username.text = inbox[0]["from"]
+                    inbox_message.text = inbox[0]["message_obj"]["data"]
+
+                    inbox_title.text = f"Inbox (1/{len(inbox)})"
+                else:
+                    inbox_title.text = f"Inbox"
+
+                page_layout.show_page(page_name="inbox")
+                continue
+            elif entered_text == "CTRL-4":
+                page_layout.show_page(page_name="conversation")
+
             if entered_text == "ESC" or entered_text == "`":
                 page_layout.show_page(page_name="menu")
 
             if page_layout.showing_page_name == "write":
-                print(f"ctrl: {cardputer.ctrl}")
 
                 print(f"et: {entered_text}")
 
@@ -433,6 +451,10 @@ try:
                     save_data_for_user(context["to_user"], user_data)
 
                     write_title.text = f"Sending to: {context['to_user']}"
+
+                    if not websocket:
+                        write_title.text = f"Writing to: {context['to_user']}"
+                        input_lbl.text = ""
 
                 else:
                     input_lbl.text += entered_text
